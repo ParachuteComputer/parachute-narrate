@@ -4,8 +4,24 @@
   "description": "Text-to-speech service for Parachute. Programmatic library + CLI for high-quality speech synthesis.",
   "license": "AGPL-3.0",
   "private": false,
-  "module": "src/index.ts",
   "type": "module",
+  "module": "src/index.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
   "bin": {
     "narrate": "src/cli.ts"
   },

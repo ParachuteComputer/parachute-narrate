@@ -13,6 +13,11 @@
 import { getTtsProvider, type TtsProvider } from "./tts-provider.ts";
 import { markdownToSpeech } from "./tts-preprocess.ts";
 import { encodeOggOpus } from "./audio-encoding.ts";
+import {
+  NarrateEmptyInputError,
+  NarrateNoProviderError,
+  NarrateProviderError,
+} from "./errors.ts";
 
 export interface SynthesizeOptions {
   /** Voice id passed through to the provider (provider-specific format). */
@@ -60,23 +65,36 @@ export async function synthesize(
   // 1. Preprocess (unless skipped).
   const speechText = opts.skipMarkdownPreprocessing ? text : markdownToSpeech(text);
   if (!speechText || !speechText.trim()) {
-    throw new Error("narrate.synthesize: text is empty after markdown preprocessing");
+    throw new NarrateEmptyInputError();
   }
 
   // 2. Resolve provider (explicit override wins over env-based resolution).
   const provider = opts.provider ?? getTtsProvider(opts.env ?? process.env);
   if (!provider) {
-    throw new Error(
-      "narrate.synthesize: no TTS provider configured (set TTS_PROVIDER=kokoro|elevenlabs)",
-    );
+    throw new NarrateNoProviderError();
   }
 
-  // 3. Synthesize.
-  const rawResult = await provider.synthesize(speechText, { voice: opts.voice });
+  // 3. Synthesize. Wrap provider failures so downstream callers can
+  //    catch `NarrateProviderError` without substring matching, and can
+  //    still reach the original error via `.cause`.
+  let rawResult;
+  try {
+    rawResult = await provider.synthesize(speechText, { voice: opts.voice });
+  } catch (err) {
+    throw new NarrateProviderError(provider.name, err);
+  }
 
-  // 4. Encode to OGG Opus (48 kbps mono, VOIP profile).
+  // 4. Encode to OGG Opus (48 kbps mono, VOIP profile). Same wrapping —
+  //    encoder failures are surfaced as NarrateProviderError with
+  //    `providerName === "encoder"` so the two failure classes stay
+  //    distinguishable via `.providerName` without new error types.
   const encode = opts.encode ?? encodeOggOpus;
-  const encoded = await encode(rawResult.audio, rawResult.mime);
+  let encoded;
+  try {
+    encoded = await encode(rawResult.audio, rawResult.mime);
+  } catch (err) {
+    throw new NarrateProviderError("encoder", err);
+  }
 
   return {
     audio: encoded,
