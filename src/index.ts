@@ -47,3 +47,12 @@ export {
   OPUS_EXT,
   OPUS_MIME,
 } from "./audio-encoding.ts";
+
+export {
+  getRewriter,
+  rewriters,
+  type Rewriter,
+  type RewriteProviderName,
+} from "./rewrite/rewriters.ts";
+
+export { REWRITE_PROMPT } from "./rewrite/prompt.ts";
