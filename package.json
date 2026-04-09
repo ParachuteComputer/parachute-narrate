@@ -1,0 +1,22 @@
+{
+  "name": "parachute-narrate",
+  "version": "0.1.0",
+  "description": "Text-to-speech service for Parachute. Programmatic library + CLI for high-quality speech synthesis.",
+  "license": "AGPL-3.0",
+  "private": false,
+  "module": "src/index.ts",
+  "type": "module",
+  "bin": {
+    "narrate": "src/cli.ts"
+  },
+  "scripts": {
+    "test": "bun test src/",
+    "start": "bun run src/cli.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
