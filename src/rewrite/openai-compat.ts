@@ -85,10 +85,18 @@ export const groq = makeRewriter({
   defaultModel: "llama-3.1-8b-instant",
 });
 
+// All three fields are lazy getters so tests (and shells that set env
+// vars after import) see overrides. The other providers can hard-code
+// `baseUrl` because their endpoints are fixed; `custom` is the one place
+// the URL itself is user-configurable.
 export const custom = makeRewriter({
-  baseUrl: process.env.TTS_REWRITE_URL ?? "http://localhost:8080/v1",
+  get baseUrl() {
+    return process.env.TTS_REWRITE_URL ?? "http://localhost:8080/v1";
+  },
   get apiKey() {
     return process.env.TTS_REWRITE_API_KEY;
   },
-  defaultModel: process.env.TTS_REWRITE_MODEL ?? "default",
+  get defaultModel() {
+    return process.env.TTS_REWRITE_MODEL ?? "default";
+  },
 });

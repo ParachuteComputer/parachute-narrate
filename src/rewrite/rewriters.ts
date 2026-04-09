@@ -69,7 +69,9 @@ export function getRewriter(
   const raw = env.TTS_REWRITE_PROVIDER?.toLowerCase();
   if (!raw || raw === "none") return rewriters.none;
 
-  if (raw in rewriters) {
+  // `Object.hasOwn` (not `in`) so prototype keys like `constructor` or
+  // `toString` can't sneak past the guard and crash when invoked.
+  if (Object.hasOwn(rewriters, raw)) {
     return rewriters[raw as RewriteProviderName];
   }
 

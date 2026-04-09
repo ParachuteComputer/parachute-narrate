@@ -156,4 +156,13 @@ describe("custom rewriter", () => {
   test("throws when TTS_REWRITE_API_KEY is missing", async () => {
     await expect(custom("hi")).rejects.toThrow(/API key not set/);
   });
+
+  test("honors TTS_REWRITE_URL override", async () => {
+    process.env.TTS_REWRITE_API_KEY = "k";
+    process.env.TTS_REWRITE_URL = "https://example.local/v9";
+    stubFetch(okBody);
+
+    await custom("hi");
+    expect(calls[0]!.url).toBe("https://example.local/v9/chat/completions");
+  });
 });
