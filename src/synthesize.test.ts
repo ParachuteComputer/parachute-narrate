@@ -111,18 +111,21 @@ describe("synthesize", () => {
     ).rejects.toThrow(/encoder boom/);
   });
 
-  test("resolves provider from env when no explicit provider given", async () => {
-    // TTS_PROVIDER=kokoro resolves without an API key. The underlying
-    // spawner would fail if we actually called .synthesize, but we can
-    // verify provider resolution by passing through a custom encoder
-    // path — but the provider.synthesize call is unavoidable. So
-    // instead: verify that the factory resolved something (unknown
-    // provider yields "no provider configured", kokoro resolves fine).
-    await expect(
-      synthesize("hello", {
-        env: { TTS_PROVIDER: "bogus" },
-        encode: fakeEncode,
-      }),
-    ).rejects.toThrow(/no TTS provider configured/);
+  test("unknown TTS_PROVIDER in env resolves to no provider", async () => {
+    // `getTtsProvider` warns + returns null for unknown providers, so
+    // synthesize must surface the same "no provider configured" error
+    // as the empty-env case.
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      await expect(
+        synthesize("hello", {
+          env: { TTS_PROVIDER: "bogus" },
+          encode: fakeEncode,
+        }),
+      ).rejects.toThrow(/no TTS provider configured/);
+    } finally {
+      console.warn = warn;
+    }
   });
 });

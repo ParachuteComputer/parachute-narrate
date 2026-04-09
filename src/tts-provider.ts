@@ -35,11 +35,6 @@ import { mkdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
-// Re-export the encoder so downstream callers can
-// `import { encodeOggOpus } from "parachute-narrate/tts-provider"` without
-// caring about the file split.
-export { encodeOggOpus } from "./audio-encoding.ts";
-
 // ---------------------------------------------------------------------------
 // Interface
 // ---------------------------------------------------------------------------

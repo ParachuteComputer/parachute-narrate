@@ -43,7 +43,7 @@ Options for \`generate\`:
   -o, --output <file>                   Write OGG Opus output to <file>
                                         (default: stdout, binary)
       --voice <id>                      Voice id (provider-specific)
-      --raw                              Skip markdown preprocessing
+      --raw                             Skip markdown preprocessing
 
 Environment:
   TTS_PROVIDER                          kokoro | elevenlabs | none (default: none)
