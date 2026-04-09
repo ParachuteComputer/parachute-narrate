@@ -6,6 +6,12 @@
 import { describe, test, expect } from "bun:test";
 import { synthesize } from "./synthesize.ts";
 import type { TtsProvider, TtsSynthesisResult } from "./tts-provider.ts";
+import {
+  NarrateError,
+  NarrateEmptyInputError,
+  NarrateNoProviderError,
+  NarrateProviderError,
+} from "./errors.ts";
 
 function fakeProvider(
   calls: Array<{ text: string; voice?: string }> = [],
@@ -62,53 +68,91 @@ describe("synthesize", () => {
     expect(calls[0]!.text).toBe("# not a header");
   });
 
-  test("throws when text is empty after preprocessing", async () => {
-    await expect(
-      synthesize("```python\nprint('hi')\n```", {
+  test("throws NarrateEmptyInputError when text is empty after preprocessing", async () => {
+    // A note whose only content is a fenced code block collapses to empty
+    // after markdownToSpeech — this is the canonical "unspeakable" case.
+    let caught: unknown;
+    try {
+      await synthesize("```python\nprint('hi')\n```", {
         provider: fakeProvider(),
         encode: fakeEncode,
-      }),
-    ).rejects.toThrow(/empty after markdown preprocessing/);
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NarrateEmptyInputError);
+    expect(caught).toBeInstanceOf(NarrateError);
+    // Message preserved for back-compat with existing substring matches.
+    expect((caught as Error).message).toContain("empty after markdown preprocessing");
+    expect((caught as Error).name).toBe("NarrateEmptyInputError");
   });
 
-  test("throws when text is empty and preprocessing is skipped", async () => {
+  test("throws NarrateEmptyInputError when text is empty and preprocessing is skipped", async () => {
     await expect(
       synthesize("   ", {
         provider: fakeProvider(),
         encode: fakeEncode,
         skipMarkdownPreprocessing: true,
       }),
-    ).rejects.toThrow(/empty after markdown preprocessing/);
+    ).rejects.toBeInstanceOf(NarrateEmptyInputError);
   });
 
-  test("throws when no provider is configured", async () => {
-    await expect(
-      synthesize("hello world", {
+  test("throws NarrateNoProviderError when no provider is configured", async () => {
+    let caught: unknown;
+    try {
+      await synthesize("hello world", {
         env: {}, // no TTS_PROVIDER set
         encode: fakeEncode,
-      }),
-    ).rejects.toThrow(/no TTS provider configured/);
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NarrateNoProviderError);
+    expect(caught).toBeInstanceOf(NarrateError);
+    expect((caught as Error).message).toContain("no TTS provider configured");
+    expect((caught as Error).name).toBe("NarrateNoProviderError");
   });
 
-  test("propagates provider errors", async () => {
+  test("wraps provider failures in NarrateProviderError with cause + providerName", async () => {
+    const original = new Error("provider boom");
     const failingProvider: TtsProvider = {
       name: "boom",
       async synthesize() {
-        throw new Error("provider boom");
+        throw original;
       },
     };
-    await expect(
-      synthesize("hello", { provider: failingProvider, encode: fakeEncode }),
-    ).rejects.toThrow(/provider boom/);
+    let caught: unknown;
+    try {
+      await synthesize("hello", { provider: failingProvider, encode: fakeEncode });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NarrateProviderError);
+    expect(caught).toBeInstanceOf(NarrateError);
+    const perr = caught as NarrateProviderError;
+    expect(perr.providerName).toBe("boom");
+    expect(perr.cause).toBe(original);
+    // Message still contains the underlying cause text for logs + legacy
+    // substring matches.
+    expect(perr.message).toContain("provider boom");
   });
 
-  test("propagates encoder errors", async () => {
+  test("wraps encoder failures in NarrateProviderError with providerName='encoder'", async () => {
+    const original = new Error("encoder boom");
     const failingEncode = async () => {
-      throw new Error("encoder boom");
+      throw original;
     };
-    await expect(
-      synthesize("hello", { provider: fakeProvider(), encode: failingEncode }),
-    ).rejects.toThrow(/encoder boom/);
+    let caught: unknown;
+    try {
+      await synthesize("hello", { provider: fakeProvider(), encode: failingEncode });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NarrateProviderError);
+    const perr = caught as NarrateProviderError;
+    expect(perr.providerName).toBe("encoder");
+    expect(perr.cause).toBe(original);
+    expect(perr.message).toContain("encoder boom");
   });
 
   test("unknown TTS_PROVIDER in env resolves to no provider", async () => {

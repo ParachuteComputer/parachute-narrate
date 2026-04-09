@@ -20,6 +20,13 @@ export {
 } from "./synthesize.ts";
 
 export {
+  NarrateError,
+  NarrateEmptyInputError,
+  NarrateNoProviderError,
+  NarrateProviderError,
+} from "./errors.ts";
+
+export {
   getTtsProvider,
   createKokoroProvider,
   resolveKokoroConfig,
