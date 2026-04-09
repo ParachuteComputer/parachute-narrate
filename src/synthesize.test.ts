@@ -6,6 +6,7 @@
 import { describe, test, expect } from "bun:test";
 import { synthesize } from "./synthesize.ts";
 import type { TtsProvider, TtsSynthesisResult } from "./tts-provider.ts";
+import type { Rewriter } from "./rewrite/rewriters.ts";
 import {
   NarrateError,
   NarrateEmptyInputError,
@@ -153,6 +154,138 @@ describe("synthesize", () => {
     expect(perr.providerName).toBe("encoder");
     expect(perr.cause).toBe(original);
     expect(perr.message).toContain("encoder boom");
+  });
+
+  test("default path: no rewriter configured leaves text unchanged and rewriterUsed='none'", async () => {
+    const calls: Array<{ text: string; voice?: string }> = [];
+    const result = await synthesize("# Hello\n\n**world**", {
+      provider: fakeProvider(calls),
+      encode: fakeEncode,
+      env: {}, // explicitly no TTS_REWRITE_PROVIDER
+    });
+    expect(result.rewriterUsed).toBe("none");
+    expect(result.rewritten).toBeUndefined();
+    // Provider received the preprocessed text, not anything rewritten.
+    expect(calls[0]!.text).toContain("Hello");
+    expect(calls[0]!.text).not.toContain("**");
+  });
+
+  test("injected rewriter: provider receives rewritten text, result reports it", async () => {
+    const calls: Array<{ text: string; voice?: string }> = [];
+    const upper = async (t: string) => t.toUpperCase();
+
+    const result = await synthesize("# Hello world", {
+      provider: fakeProvider(calls),
+      encode: fakeEncode,
+      rewriter: upper,
+    });
+
+    // markdownToSpeech may add a trailing period; assert uppercased shape
+    // rather than exact equality so we don't pin preprocessor punctuation.
+    expect(calls[0]!.text).toMatch(/^HELLO WORLD/);
+    expect(calls[0]!.text).toBe(calls[0]!.text.toUpperCase());
+    expect(result.rewritten).toBe(calls[0]!.text);
+    expect(result.rewriterUsed).toBe("injected");
+  });
+
+  test("rewriter receives the preprocessed text, not raw markdown", async () => {
+    let seenByRewriter: string | undefined;
+    const probe = async (t: string) => {
+      seenByRewriter = t;
+      return t;
+    };
+    await synthesize("# Heading\n\n**bold** and `code`", {
+      provider: fakeProvider(),
+      encode: fakeEncode,
+      rewriter: probe,
+    });
+    expect(seenByRewriter).toBeDefined();
+    // Markdown sigils should already be stripped before the rewriter sees it.
+    expect(seenByRewriter).not.toContain("#");
+    expect(seenByRewriter).not.toContain("**");
+    expect(seenByRewriter).not.toContain("`");
+    expect(seenByRewriter).toContain("Heading");
+    expect(seenByRewriter).toContain("bold");
+  });
+
+  test("rewriter:null explicitly opts out even when env says otherwise", async () => {
+    const calls: Array<{ text: string; voice?: string }> = [];
+    const result = await synthesize("hello", {
+      provider: fakeProvider(calls),
+      encode: fakeEncode,
+      env: { TTS_REWRITE_PROVIDER: "ollama" },
+      rewriter: null,
+      skipMarkdownPreprocessing: true,
+    });
+    expect(result.rewriterUsed).toBe("none");
+    expect(result.rewritten).toBeUndefined();
+    // Provider received the literal input — no ollama resolution attempted.
+    expect(calls[0]!.text).toBe("hello");
+  });
+
+  test("opts.rewriter wins over env-resolved rewriter", async () => {
+    const calls: Array<{ text: string; voice?: string }> = [];
+    const tag = async (t: string) => `[tagged] ${t}`;
+    const result = await synthesize("hi there", {
+      provider: fakeProvider(calls),
+      encode: fakeEncode,
+      env: { TTS_REWRITE_PROVIDER: "ollama" }, // would normally hit ollama
+      rewriter: tag,
+    });
+    expect(calls[0]!.text).toBe("[tagged] hi there");
+    expect(result.rewriterUsed).toBe("injected");
+  });
+
+  test("rewriter failures are wrapped in NarrateProviderError with cause", async () => {
+    const original = new Error("rewrite api 500");
+    const exploding: Rewriter = async () => {
+      throw original;
+    };
+    let caught: unknown;
+    try {
+      await synthesize("hello", {
+        provider: fakeProvider(),
+        encode: fakeEncode,
+        rewriter: exploding,
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NarrateProviderError);
+    const perr = caught as NarrateProviderError;
+    expect(perr.providerName).toBe("rewriter:injected");
+    expect(perr.cause).toBe(original);
+    expect(perr.message).toContain("rewrite api 500");
+  });
+
+  test("rewriter returning empty string throws NarrateEmptyInputError", async () => {
+    const eraser: Rewriter = async () => "   ";
+    let caught: unknown;
+    try {
+      await synthesize("hello world", {
+        provider: fakeProvider(),
+        encode: fakeEncode,
+        rewriter: eraser,
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NarrateEmptyInputError);
+    expect((caught as Error).message).toContain("after rewrite");
+    expect((caught as Error).message).toContain("injected");
+  });
+
+  test("env-resolved rewriter: TTS_REWRITE_PROVIDER=none skips rewriting", async () => {
+    const calls: Array<{ text: string; voice?: string }> = [];
+    const result = await synthesize("hello", {
+      provider: fakeProvider(calls),
+      encode: fakeEncode,
+      env: { TTS_REWRITE_PROVIDER: "none" },
+      skipMarkdownPreprocessing: true,
+    });
+    expect(result.rewriterUsed).toBe("none");
+    expect(result.rewritten).toBeUndefined();
+    expect(calls[0]!.text).toBe("hello");
   });
 
   test("unknown TTS_PROVIDER in env resolves to no provider", async () => {
