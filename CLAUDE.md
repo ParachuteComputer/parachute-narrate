@@ -63,6 +63,31 @@ KOKORO_PYTHON_ARGS     Space-separated extra args for the generate.py call
 KOKORO_TIMEOUT_MS      Subprocess timeout ms. Default: 300000 (5 min)
 ```
 
+### Optional voice rewriter (pre-synthesis stage)
+
+The rewriter is a pre-synthesis pass that runs the input text through an LLM
+to make it sound natural when read aloud — strips code-block literalism,
+normalizes brand names, removes meta-commentary, etc. It is **opt-in** and
+**not yet wired into `synthesize`**; the scaffolding ships in `src/rewrite/`
+and is exported via `getRewriter(env)`. Integration into the pipeline is a
+follow-up PR.
+
+```
+TTS_REWRITE_PROVIDER   none | claude | claude-cli | ollama | openai
+                       | gemini | groq | custom              (default: none)
+TTS_REWRITE_MODEL      Override the default model for the chosen provider
+TTS_REWRITE_URL        Endpoint URL for TTS_REWRITE_PROVIDER=custom
+TTS_REWRITE_API_KEY    Bearer token for TTS_REWRITE_PROVIDER=custom
+```
+
+Reuses existing provider env vars when present:
+`ANTHROPIC_API_KEY`, `OLLAMA_URL`, `OLLAMA_MODEL`, `OPENAI_API_KEY`,
+`GEMINI_API_KEY`, `GROQ_API_KEY`. The Ollama default model is `gemma4:e4b`
+(narrate diverges from scribe's `llama3.1` deliberately — gemma4 produces
+better voice rewrites once `think:false` and `temperature:0.2` are pinned).
+The `claude-cli` provider shells out to a local `claude -p` subprocess and
+needs Claude Code installed on PATH.
+
 ## Dependencies
 
 - **Runtime**: [Bun](https://bun.sh) (`Bun.spawn`, `Bun.file`, `bun:test`).
