@@ -75,3 +75,33 @@ export class NarrateProviderError extends NarrateError {
     this.providerName = providerName;
   }
 }
+
+/**
+ * Thrown when the rewriter's output length ratio falls outside acceptable
+ * bounds, indicating degenerate output (repetition loops, truncation, etc.).
+ *
+ * A legitimate rewrite should be roughly 0.9–1.3x the input length. The
+ * default bounds of [0.5, 1.5] give generous headroom while catching the
+ * kind of 1.5x–3.5x blowups observed with gemma4:e4b repetition traps.
+ *
+ * Consumers can catch this specifically to retry with a different rewriter
+ * or fall back to the raw markdown-stripped text.
+ */
+export class NarrateRewriterDegenerateError extends NarrateError {
+  readonly rewriter: string;
+  readonly inputLength: number;
+  readonly outputLength: number;
+  readonly ratio: number;
+
+  constructor(opts: { rewriter: string; inputLength: number; outputLength: number; ratio: number }) {
+    super(
+      `narrate.synthesize: rewriter output length ratio ${opts.ratio.toFixed(2)} outside bounds ` +
+      `(in=${opts.inputLength}, out=${opts.outputLength}, rewriter=${opts.rewriter})`,
+    );
+    this.name = "NarrateRewriterDegenerateError";
+    this.rewriter = opts.rewriter;
+    this.inputLength = opts.inputLength;
+    this.outputLength = opts.outputLength;
+    this.ratio = opts.ratio;
+  }
+}

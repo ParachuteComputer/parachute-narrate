@@ -22,6 +22,7 @@ import {
   NarrateEmptyInputError,
   NarrateNoProviderError,
   NarrateProviderError,
+  NarrateRewriterDegenerateError,
 } from "./errors.ts";
 
 export interface SynthesizeOptions {
@@ -145,6 +146,23 @@ export async function synthesize(
       throw new NarrateEmptyInputError(
         `narrate.synthesize: text is empty after rewrite (rewriter=${rewriterUsed})`,
       );
+    }
+
+    // 4b. Ratio-based quality gate. A legitimate rewrite is roughly
+    //     0.9–1.3x; bounds default to [0.5, 1.5] with generous headroom.
+    //     Catches repetition-loop blowups (gemma4:e4b produced 1.53–3.56x)
+    //     and catastrophic truncation.
+    const env = opts.env ?? process.env;
+    const maxRatio = parseFloat(env.TTS_REWRITE_MAX_RATIO ?? "") || 1.5;
+    const minRatio = parseFloat(env.TTS_REWRITE_MIN_RATIO ?? "") || 0.5;
+    const ratio = rewrittenText.length / speechText.length;
+    if (ratio > maxRatio || ratio < minRatio) {
+      throw new NarrateRewriterDegenerateError({
+        rewriter: rewriterUsed,
+        inputLength: speechText.length,
+        outputLength: rewrittenText.length,
+        ratio,
+      });
     }
   }
 

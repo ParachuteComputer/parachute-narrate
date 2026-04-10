@@ -12,6 +12,7 @@ import {
   NarrateEmptyInputError,
   NarrateNoProviderError,
   NarrateProviderError,
+  NarrateRewriterDegenerateError,
 } from "./errors.ts";
 
 function fakeProvider(
@@ -226,13 +227,14 @@ describe("synthesize", () => {
   test("opts.rewriter wins over env-resolved rewriter", async () => {
     const calls: Array<{ text: string; voice?: string }> = [];
     const tag = async (t: string) => `[tagged] ${t}`;
-    const result = await synthesize("hi there", {
+    const input = "This is a longer sentence that stays within the ratio bounds after tagging";
+    const result = await synthesize(input, {
       provider: fakeProvider(calls),
       encode: fakeEncode,
       env: { TTS_REWRITE_PROVIDER: "ollama" }, // would normally hit ollama
       rewriter: tag,
     });
-    expect(calls[0]!.text).toBe("[tagged] hi there");
+    expect(calls[0]!.text).toBe(`[tagged] ${input}`);
     expect(result.rewriterUsed).toBe("injected");
   });
 
@@ -273,6 +275,55 @@ describe("synthesize", () => {
     expect(caught).toBeInstanceOf(NarrateEmptyInputError);
     expect((caught as Error).message).toContain("after rewrite");
     expect((caught as Error).message).toContain("injected");
+  });
+
+  test("rewriter output too long throws NarrateRewriterDegenerateError", async () => {
+    const bloater: Rewriter = async (t) => t.repeat(3);
+    let caught: unknown;
+    try {
+      await synthesize("hello world this is a test sentence", {
+        provider: fakeProvider(),
+        encode: fakeEncode,
+        rewriter: bloater,
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NarrateRewriterDegenerateError);
+    const derr = caught as NarrateRewriterDegenerateError;
+    expect(derr.ratio).toBeGreaterThan(1.5);
+    expect(derr.rewriter).toBe("injected");
+  });
+
+  test("rewriter output too short throws NarrateRewriterDegenerateError", async () => {
+    const truncator: Rewriter = async (t) => t.slice(0, 5);
+    let caught: unknown;
+    try {
+      await synthesize("this is a much longer input that will be severely truncated by the rewriter", {
+        provider: fakeProvider(),
+        encode: fakeEncode,
+        rewriter: truncator,
+      });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(NarrateRewriterDegenerateError);
+    const derr = caught as NarrateRewriterDegenerateError;
+    expect(derr.ratio).toBeLessThan(0.5);
+  });
+
+  test("quality gate bounds are configurable via env", async () => {
+    const doubler: Rewriter = async (t) => t + t;
+    const calls: Array<{ text: string; voice?: string }> = [];
+    // With default bounds (1.5), doubling would fail. With max_ratio=3.0, it passes.
+    const result = await synthesize("hello world this is some text", {
+      provider: fakeProvider(calls),
+      encode: fakeEncode,
+      rewriter: doubler,
+      env: { TTS_REWRITE_MAX_RATIO: "3.0" },
+    });
+    expect(result.rewriterUsed).toBe("injected");
+    expect(calls.length).toBe(1);
   });
 
   test("env-resolved rewriter: TTS_REWRITE_PROVIDER=none skips rewriting", async () => {
