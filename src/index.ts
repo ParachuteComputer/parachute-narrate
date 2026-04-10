@@ -24,6 +24,7 @@ export {
   NarrateEmptyInputError,
   NarrateNoProviderError,
   NarrateProviderError,
+  NarrateRewriterDegenerateError,
 } from "./errors.ts";
 
 export {
