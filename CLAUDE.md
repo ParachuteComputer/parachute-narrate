@@ -1,15 +1,15 @@
-# parachute-narrate
+# @openparachute/narrate
 
 Text-to-speech library + CLI for [Parachute](https://parachute.computer). Takes
 text in, returns OGG Opus audio bytes out. The opposite direction of sister
-repo `parachute-scribe` (audio → text).
+repo `@openparachute/scribe` (audio → text).
 
 ## Purpose
 
 One small, composable package for high-quality speech synthesis. Ships a
 programmatic entry point (`synthesize`) for embedding into other tools and a
 `narrate` CLI for one-off generation from a terminal. Extracted from the
-`parachute-vault` `#reader` → audio hook so the TTS pipeline can stand alone
+`@openparachute/vault` `#reader` → audio hook so the TTS pipeline can stand alone
 and be reused outside the vault.
 
 ## Architecture
@@ -30,7 +30,7 @@ Three load-bearing modules:
 `src/index.ts` is the public programmatic surface; `src/cli.ts` is the
 thin argv-parsing CLI.
 
-Mirrors sister repo `parachute-scribe`'s shape (library + CLI). `narrate`
+Mirrors sister repo `@openparachute/scribe`'s shape (library + CLI). `narrate`
 intentionally does **not** ship an HTTP server — the vault wraps it for
 server-side use.
 
@@ -99,7 +99,7 @@ No npm runtime dependencies. TypeScript is declared as a peerDependency.
 ## Programmatic use
 
 ```ts
-import { synthesize } from "parachute-narrate";
+import { synthesize } from "@openparachute/narrate";
 
 const { audio } = await synthesize("# Hello\n\n**world**");
 await Bun.write("hello.ogg", audio);
@@ -108,14 +108,14 @@ await Bun.write("hello.ogg", audio);
 Lower-level pieces are re-exported if you need them:
 
 ```ts
-import { getTtsProvider, markdownToSpeech, encodeOggOpus } from "parachute-narrate";
+import { getTtsProvider, markdownToSpeech, encodeOggOpus } from "@openparachute/narrate";
 ```
 
-## How parachute-vault consumes narrate
+## How @openparachute/vault consumes narrate
 
 Vault has its own `#reader` → audio hook that listens for reader-tagged notes
 and attaches synthesized audio. After this package is published, vault's hook
-will call `await import("parachute-narrate")` instead of maintaining its own
+will call `await import("@openparachute/narrate")` instead of maintaining its own
 copies of the provider / preprocess / encode modules. Vault owns the
 hook-integration concerns (two-phase marker, attachment storage, retry
 semantics); narrate owns the pure audio pipeline.
@@ -151,6 +151,6 @@ spawns Python / Kokoro. Don't bring mlx-audio into the CI loop.
 
 Early. v0.1 is the library + CLI extraction. Next milestones (rough):
 
-- Publish to npm as `parachute-narrate` (public).
-- Swap vault's in-process copies to `await import("parachute-narrate")`.
+- Publish to npm as `@openparachute/narrate` (public).
+- Swap vault's in-process copies to `await import("@openparachute/narrate")`.
 - Additional providers if/when we need them (XTTS, F5, etc.).
