@@ -1,15 +1,15 @@
 /**
- * Public programmatic entry point for parachute-narrate.
+ * Public programmatic entry point for @openparachute/narrate.
  *
  * Typical usage:
  *
- *   import { synthesize } from "parachute-narrate";
+ *   import { synthesize } from "@openparachute/narrate";
  *   const { audio } = await synthesize("Hello, world.");
  *   await Bun.write("out.ogg", audio);
  *
  * For finer control, import the underlying pieces directly:
  *
- *   import { getTtsProvider } from "parachute-narrate";
+ *   import { getTtsProvider } from "@openparachute/narrate";
  *   const provider = getTtsProvider(process.env);
  */
 

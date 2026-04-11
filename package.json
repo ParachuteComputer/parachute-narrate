@@ -1,5 +1,5 @@
 {
-  "name": "parachute-narrate",
+  "name": "@openparachute/narrate",
   "version": "0.1.0",
   "description": "Text-to-speech service for Parachute. Programmatic library + CLI for high-quality speech synthesis.",
   "license": "AGPL-3.0",
