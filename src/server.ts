@@ -9,13 +9,13 @@ import { synthesize } from "./synthesize.ts";
 
 const DEFAULT_PORT = 3100;
 
-export function startServer(port?: number) {
+export function startServer(port?: number): ReturnType<typeof Bun.serve> {
   const p = port ?? Number(process.env.PORT ?? DEFAULT_PORT);
 
   console.log(`narrate listening on :${p}`);
   console.log(`  TTS_PROVIDER: ${process.env.TTS_PROVIDER ?? "(not set)"}`);
 
-  Bun.serve({
+  return Bun.serve({
     hostname: "0.0.0.0",
     port: p,
     async fetch(req) {

@@ -1,6 +1,6 @@
 /**
- * Tests for the narrate HTTP server. Spins up a real server on a random port,
- * stubs the synthesize function via module mocking.
+ * Tests for the narrate HTTP server. Spins up the real server with a stubbed
+ * synthesize function via module mocking.
  */
 
 import { describe, test, expect, beforeAll, afterAll, mock } from "bun:test";
@@ -23,60 +23,14 @@ mock.module("./synthesize.ts", () => ({
   },
 }));
 
-// Import after mocking
 const { startServer } = await import("./server.ts");
 
+let server: ReturnType<typeof Bun.serve>;
 let baseUrl: string;
-let server: ReturnType<typeof Bun.serve> | undefined;
 
 beforeAll(() => {
-  // Use port 0 to get a random available port
-  const port = 0;
-  // Capture the server instance via the return value
-  // startServer doesn't return the server, so we start our own
-  const s = Bun.serve({
-    hostname: "127.0.0.1",
-    port: 0,
-    async fetch(req) {
-      const url = new URL(req.url);
-
-      if (url.pathname === "/v1/audio/speech" && req.method === "POST") {
-        let body: { model?: string; voice?: string; input?: string };
-        try {
-          body = await req.json();
-        } catch {
-          return Response.json({ error: "invalid JSON body" }, { status: 400 });
-        }
-        const input = body.input;
-        if (!input || typeof input !== "string" || !input.trim()) {
-          return Response.json({ error: "missing or empty 'input' field" }, { status: 400 });
-        }
-        try {
-          const { synthesize } = await import("./synthesize.ts");
-          const result = await synthesize(input, { voice: body.voice });
-          return new Response(result.audio, {
-            headers: {
-              "Content-Type": "audio/ogg",
-              "Content-Length": String(result.audio.byteLength),
-              "X-TTS-Provider": result.provider,
-              ...(result.voice ? { "X-TTS-Voice": result.voice } : {}),
-            },
-          });
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : "synthesis failed";
-          return Response.json({ error: message }, { status: 500 });
-        }
-      }
-
-      if (url.pathname === "/health") {
-        return Response.json({ ok: true });
-      }
-
-      return new Response("Not found", { status: 404 });
-    },
-  });
-  server = s;
-  baseUrl = `http://127.0.0.1:${s.port}`;
+  server = startServer(0); // port 0 = random available port
+  baseUrl = `http://127.0.0.1:${server.port}`;
 });
 
 afterAll(() => {
