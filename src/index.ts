@@ -57,3 +57,5 @@ export {
 } from "./rewrite/rewriters.ts";
 
 export { REWRITE_PROMPT } from "./rewrite/prompt.ts";
+
+export { startServer } from "./server.ts";
