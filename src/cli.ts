@@ -7,6 +7,7 @@
  *
  * Commands:
  *   narrate generate <text>             Synthesize speech. -o <file> writes to disk.
+ *   narrate serve                       Start HTTP server (OpenAI-compatible TTS).
  *   narrate providers                   List configured/available providers.
  *   narrate --help                      Show usage.
  *   narrate --version                   Show package version.
@@ -14,6 +15,7 @@
 
 import { synthesize } from "./synthesize.ts";
 import { getTtsProvider } from "./tts-provider.ts";
+import { startServer } from "./server.ts";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -35,6 +37,7 @@ function usage() {
 
 Usage:
   narrate generate <text>               Synthesize text to audio
+  narrate serve                         Start HTTP server (port ${process.env.PORT ?? 3100})
   narrate providers                     List configured TTS providers
   narrate --help                        Show this help
   narrate --version                     Show package version
@@ -44,6 +47,9 @@ Options for \`generate\`:
                                         (default: stdout, binary)
       --voice <id>                      Voice id (provider-specific)
       --raw                             Skip markdown preprocessing
+
+Options for \`serve\`:
+  --port <number>                       Port to listen on (default: 3100, or PORT env)
 
 Environment:
   TTS_PROVIDER                          kokoro | elevenlabs | none (default: none)
@@ -89,6 +95,10 @@ switch (command) {
     cmdProviders();
     break;
 
+  case "serve":
+    cmdServe();
+    break;
+
   case "generate":
     await cmdGenerate();
     break;
@@ -97,6 +107,12 @@ switch (command) {
     console.error(`Unknown command: ${command}`);
     usage();
     process.exit(1);
+}
+
+function cmdServe() {
+  const portArg = getFlag("--port");
+  const port = portArg ? parseInt(portArg, 10) : undefined;
+  startServer(port);
 }
 
 function cmdProviders() {
