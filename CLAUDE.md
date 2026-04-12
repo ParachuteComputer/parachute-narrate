@@ -30,9 +30,9 @@ Three load-bearing modules:
 `src/index.ts` is the public programmatic surface; `src/cli.ts` is the
 thin argv-parsing CLI.
 
-Mirrors sister repo `@openparachute/scribe`'s shape (library + CLI). `narrate`
-intentionally does **not** ship an HTTP server — the vault wraps it for
-server-side use.
+Mirrors sister repo `@openparachute/scribe`'s shape (library + CLI + HTTP
+server). `narrate serve` starts a localhost-only OpenAI-compatible TTS endpoint
+on port 3100 that vault's webhook trigger system can target.
 
 ## Providers
 

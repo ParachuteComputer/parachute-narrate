@@ -16,7 +16,7 @@ export function startServer(port?: number): ReturnType<typeof Bun.serve> {
   console.log(`  TTS_PROVIDER: ${process.env.TTS_PROVIDER ?? "(not set)"}`);
 
   return Bun.serve({
-    hostname: "0.0.0.0",
+    hostname: "127.0.0.1",
     port: p,
     async fetch(req) {
       const url = new URL(req.url);
