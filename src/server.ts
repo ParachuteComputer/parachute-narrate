@@ -16,13 +16,23 @@ export function startServer(port?: number): ReturnType<typeof Bun.serve> {
   console.log(`  TTS_PROVIDER: ${process.env.TTS_PROVIDER ?? "(not set)"}`);
 
   return Bun.serve({
-    hostname: "127.0.0.1",
+    hostname: "0.0.0.0",
     port: p,
     async fetch(req) {
       const url = new URL(req.url);
 
       if (url.pathname === "/v1/audio/speech" && req.method === "POST") {
         return handleSpeech(req);
+      }
+
+      if (url.pathname === "/v1/models") {
+        return Response.json({
+          object: "list",
+          data: [
+            { id: "kokoro", object: "model", owned_by: "parachute" },
+            { id: "elevenlabs", object: "model", owned_by: "parachute" },
+          ],
+        });
       }
 
       if (url.pathname === "/health") {
